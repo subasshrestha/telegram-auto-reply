@@ -167,9 +167,6 @@ async function main() {
             );
             for (const replyMessage of replyMessages) {
               await client.sendMessage(senderId, { message: replyMessage });
-              console.log(
-                `🔄 Autoreply sent to ${senderName} (${senderId}): ${replyMessage}`
-              );
             }
             console.log(
               `✅ Finished sending autoreplies to ${senderName} (${senderId})`
