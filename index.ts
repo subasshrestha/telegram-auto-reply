@@ -13,6 +13,9 @@ const API_ID = parseInt(process.env.API_ID || "0");
 const API_HASH = process.env.API_HASH || "";
 const SESSION_STRING = process.env.SESSION_STRING || "";
 
+// Track users currently being replied to
+const currentUsers = new Set<number>();
+
 if (!API_ID || !API_HASH) {
   console.error("❌ Error: API_ID and API_HASH are required in .env file");
   console.log("📝 Get them from https://my.telegram.org/apps");
@@ -53,11 +56,19 @@ async function shouldTriggerAutoreply(
     );
   }
 
+  // Check if user is currently being replied to
+  if (currentUsers.has(senderId)) {
+    console.log(`ℹ️ Already replying to user ${senderId}, skipping...`);
+    return false;
+  }
+
+  console.log("ℹ️ No trigger keywords set, proceeding to Gemini check");
   const isScammer = await checkScammer(messageText);
   if (isScammer) {
     console.log(`⚠️ Message identified as scam by Gemini AI`);
     return true;
   }
+  console.log(`ℹ️ Message not identified as scam by Gemini AI`);
 
   return false;
 }
@@ -151,7 +162,8 @@ async function main() {
         if (!message || !message.isPrivate || message.out) return;
 
         const senderId = message.senderId?.toJSNumber();
-        const senderName = (message.sender as any)?.firstName || "Unknown";
+        const sender = await message.getSender();
+        const senderName = (sender as any)?.firstName || "Unknown";
         const messageText = message.text || "";
 
         console.log(
@@ -161,6 +173,7 @@ async function main() {
         // Check if we should send autoreply
         if (senderId && (await shouldTriggerAutoreply(senderId, messageText))) {
           try {
+            currentUsers.add(senderId);
             const replyMessages = shuffleArray(responses);
             console.log(
               `🔄 Sending autoreply to ${senderName} (${senderId})...`
@@ -171,6 +184,7 @@ async function main() {
             console.log(
               `✅ Finished sending autoreplies to ${senderName} (${senderId})`
             );
+            currentUsers.delete(senderId);
           } catch (error) {
             console.error("❌ Error sending autoreply:", error);
           }
