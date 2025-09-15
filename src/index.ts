@@ -3,8 +3,9 @@ import { StringSession } from "telegram/sessions";
 import { NewMessage } from "telegram/events";
 import { config } from "dotenv";
 import { writeFileSync, readFileSync } from "fs";
-import responses from "./responses.json";
+import responses from "../responses.json";
 import { checkScammer } from "./gemini";
+import logger from "./logger";
 // Load environment variables
 config();
 
@@ -17,8 +18,8 @@ const SESSION_STRING = process.env.SESSION_STRING || "";
 const currentUsers = new Set<number>();
 
 if (!API_ID || !API_HASH) {
-  console.error("❌ Error: API_ID and API_HASH are required in .env file");
-  console.log("📝 Get them from https://my.telegram.org/apps");
+  logger.error("❌ Error: API_ID and API_HASH are required in .env file");
+  logger.info("📝 Get them from https://my.telegram.org/apps");
   process.exit(1);
 }
 
@@ -58,17 +59,17 @@ async function shouldTriggerAutoreply(
 
   // Check if user is currently being replied to
   if (currentUsers.has(senderId)) {
-    console.log(`ℹ️ Already replying to user ${senderId}, skipping...`);
+    logger.info(`ℹ️ Already replying to user ${senderId}, skipping...`);
     return false;
   }
 
-  console.log("ℹ️ No trigger keywords set, proceeding to Gemini check");
+  logger.info("ℹ️ No trigger keywords set, proceeding to Gemini check");
   const isScammer = await checkScammer(messageText);
   if (isScammer) {
-    console.log(`⚠️ Message identified as scam by Gemini AI`);
+    logger.info(`⚠️ Message identified as scam by Gemini AI`);
     return true;
   }
-  console.log(`ℹ️ Message not identified as scam by Gemini AI`);
+  logger.info(`ℹ️ Message not identified as scam by Gemini AI`);
 
   return false;
 }
@@ -94,21 +95,21 @@ function shuffleArray<T>(array: T[]): T[] {
 
 async function main() {
   try {
-    console.log("🔄 Connecting to Telegram...");
+    logger.info("🔄 Connecting to Telegram...");
     await client.start({
       phoneNumber: async () => await getUserInput("Enter your phone number: "),
       password: async () => await getUserInput("Enter your password: "),
       phoneCode: async () =>
         await getUserInput("Enter the code you received: "),
-      onError: (err: Error) => console.log("❌ Error:", err),
+      onError: (err: Error) => logger.error(err, "❌ Error:"),
     });
 
-    console.log("✅ Successfully connected to Telegram!");
+    logger.info("✅ Successfully connected to Telegram!");
 
     // Save session string for future use
     if (!SESSION_STRING) {
       const newSessionString = client.session.save();
-      console.log("📝 Auto-saving session string to .env file...");
+      logger.info("📝 Auto-saving session string to .env file...");
 
       try {
         // Read current .env file
@@ -123,34 +124,34 @@ async function main() {
 
         // Write back to .env file
         writeFileSync(envPath, updatedContent);
-        console.log(
+        logger.info(
           "✅ Session string saved! Future runs won't require authentication."
         );
       } catch (error) {
-        console.error("❌ Error saving session string:", error);
-        console.log("📝 Please manually add this to your .env file:");
-        console.log(`SESSION_STRING=${newSessionString}`);
+        logger.error(error, "❌ Error saving session string:");
+        logger.info("📝 Please manually add this to your .env file:");
+        logger.info(`SESSION_STRING=${newSessionString}`);
       }
     }
 
     // Get current user info
     const me = await client.getMe();
-    console.log(
+    logger.info(
       `👤 Logged in as: ${me.firstName} ${me.lastName || ""} (@${
         me.username || "N/A"
       })`
     );
 
     // Configuration summary
-    console.log("\n📋 Autoreply Configuration:");
+    logger.info("📋 Autoreply Configuration:");
 
     if (CONFIG.excludeUserIds.length > 0) {
-      console.log(
+      logger.info(
         `   - Excluded user IDs: ${CONFIG.excludeUserIds.join(", ")}`
       );
     }
     if (CONFIG.triggerKeywords.length > 0) {
-      console.log(
+      logger.info(
         `   - Trigger keywords: ${CONFIG.triggerKeywords.join(", ")}`
       );
     }
@@ -160,13 +161,16 @@ async function main() {
       try {
         const message = update.message;
         if (!message || !message.isPrivate || message.out) return;
-
+        if (message.sender) {
+          logger.info("ℹ️ Message is from saved contact, skipping...");
+          return;
+        }
         const senderId = message.senderId?.toJSNumber();
         const sender = await message.getSender();
         const senderName = (sender as any)?.firstName || "Unknown";
         const messageText = message.text || "";
 
-        console.log(
+        logger.info(
           `📨 New DM from ${senderName} (${senderId}): ${messageText}`
         );
 
@@ -175,45 +179,44 @@ async function main() {
           try {
             currentUsers.add(senderId);
             const replyMessages = shuffleArray(responses);
-            console.log(
+            logger.info(
               `🔄 Sending autoreply to ${senderName} (${senderId})...`
             );
             for (const replyMessage of replyMessages) {
               await client.sendMessage(senderId, { message: replyMessage });
             }
-            console.log(
+            logger.info(
               `✅ Finished sending autoreplies to ${senderName} (${senderId})`
             );
             currentUsers.delete(senderId);
           } catch (error) {
-            console.error("❌ Error sending autoreply:", error);
+            logger.error(error, "❌ Error sending autoreply:");
           }
         }
       } catch (error) {
-        console.error("❌ Error processing message:", error);
+        logger.error(error, "❌ Error processing message:");
       }
     }, new NewMessage({}));
 
-    console.log("\n🎯 Autoreply is now active! Waiting for messages...");
-    console.log("💡 Press Ctrl+C to stop");
+    logger.info("🎯 Autoreply is now active! Waiting for messages...");
   } catch (error) {
-    console.error("❌ Error:", error);
+    logger.error(error, "❌ Error:");
     process.exit(1);
   }
 }
 
 // Graceful shutdown
 process.on("SIGINT", async () => {
-  console.log("\n🛑 Shutting down...");
+  logger.info("🛑 Shutting down...");
   await client.disconnect();
   process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
-  console.log("\n🛑 Shutting down...");
+  logger.info("🛑 Shutting down...");
   await client.disconnect();
   process.exit(0);
 });
 
 // Start the application
-main().catch(console.error);
+main().catch(logger.error);

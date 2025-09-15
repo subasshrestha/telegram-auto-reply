@@ -5,6 +5,7 @@ A Telegram bot that automatically replies to direct messages using customizable 
 ## Features
 
 - 🎯 Optional user filtering (exclude specific users)
+- 🚫 Skip messages from groups, channels, bots, and saved contacts
 - 🔤 Optional keyword triggers
 - 🤖 AI-powered scammer detection using Gemini AI
 - 💥 Automatic spam messages to detected scammers
@@ -13,7 +14,7 @@ A Telegram bot that automatically replies to direct messages using customizable 
 ## Prerequisites
 
 1. **Telegram API Credentials**: You need to get `API_ID` and `API_HASH` from [my.telegram.org/apps](https://my.telegram.org/apps)
-2. **Bun**: This script runs with Bun runtime
+2. **Bun**: This script runs with Bun runtime ([https://bun.sh/](https://bun.sh/)). Install Bun if you haven't already.
 3. **Google Gemini API Key**: For AI scammer detection, get an API key from Google AI Studio
 
 ## Setup Instructions
@@ -33,27 +34,18 @@ A Telegram bot that automatically replies to direct messages using customizable 
 
 ### 3. Configure Environment Variables
 
-Edit the `.env` file and add your credentials:
+1. Copy the `.env.example` file to `.env`
+
+```bash
+cp .env.example .env
+```
+
+2. Edit the `.env` file and set your fields appropriately:
 
 ```env
-# Telegram API Configuration
-API_ID=your_api_id_here
-API_HASH=your_api_hash_here
-SESSION_STRING=
-
-# Autoreply Settings
-ENABLE_AUTOREPLY=true
-AUTOREPLY_DELAY_MIN=1
-AUTOREPLY_DELAY_MAX=5
-
-# AI Scammer Detection
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# Optional: User IDs to exclude from autoreply (comma-separated)
-# EXCLUDE_USER_IDS=123456789,987654321
-
-# Optional: Keywords that trigger autoreply (comma-separated)
-# TRIGGER_KEYWORDS=hello,hi,help
+API_ID=your_api_id
+API_HASH=your_api_hash
+GOOGLE_API_KEY=your_google_api_key
 ```
 
 ### 4. Install Dependencies

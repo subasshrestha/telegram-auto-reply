@@ -4,8 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "bun run index.ts",
-    "dev": "bun --watch index.ts"
+    "start": "bun run src/index.ts",
+    "dev": "bun --watch src/index.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
@@ -17,6 +17,8 @@
     "@google/genai": "^1.19.0",
     "dotenv": "^17.2.2",
     "input": "^1.0.1",
+    "pino": "^9.9.5",
+    "pino-pretty": "^13.1.1",
     "telegram": "^2.22.2"
   }
 }
