@@ -161,10 +161,7 @@ async function main() {
       try {
         const message = update.message;
         if (!message || !message.isPrivate || message.out) return;
-        if (message.sender) {
-          logger.info("ℹ️ Message is from saved contact, skipping...");
-          return;
-        }
+
         const senderId = message.senderId?.toJSNumber();
         const sender = await message.getSender();
         const senderName = (sender as any)?.firstName || "Unknown";
@@ -174,6 +171,10 @@ async function main() {
           `📨 New DM from ${senderName} (${senderId}): ${messageText}`
         );
 
+        if ((sender as any)?.contact) {
+          logger.info("ℹ️ Message is from saved contact, skipping...");
+          return;
+        }
         // Check if we should send autoreply
         if (senderId && (await shouldTriggerAutoreply(senderId, messageText))) {
           try {
